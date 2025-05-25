@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Merger</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="assets/icons/favicon.ico">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/downloadjs/1.4.8/download.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PDF Merger</h1>
+            <p>Combine multiple PDF files into a single document</p>
+        </header>
+
+        <div class="card">
+            <div class="upload-area">
+                <label for="file-upload" class="drop-zone" id="drop-area">
+                    <div class="drop-zone-content">
+                        <img src="assets/icons/pdf-icon.svg" alt="Upload" class="upload-icon">
+                        <p><strong>Click to upload</strong> or drag and drop</p>
+                        <p class="small">PDF files only (max 20 files)</p>
+                    </div>
+                    <input id="file-upload" type="file" accept=".pdf" multiple>
+                </label>
+            </div>
+
+            <div id="file-list-container" class="hidden">
+                <h3>Selected PDF Files</h3>
+                <p class="small">Drag files to reorder them. The order below determines the order in the merged PDF.</p>
+                <div class="file-list-wrapper">
+                    <ul id="file-list" class="sortable-list"></ul>
+                </div>
+                <div class="file-list-actions">
+                    <button id="clear-btn" class="text-button">Clear All</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="pdf-name">Output PDF File Name</label>
+                <input id="pdf-name" type="text" placeholder="Enter file name (without .pdf)" value="merged_document">
+            </div>
+
+            <div class="button-container">
+                <button id="merge-btn" class="primary-button" disabled>
+                    <span class="button-icon">🔄</span>
+                    Merge PDFs
+                </button>
+            </div>
+        </div>
+
+        <div id="progress-container" class="card hidden">
+            <div class="progress-header">
+                <span>Processing PDF files...</span>
+                <span id="progress-text">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+        </div>
+
+        <div id="result-container" class="card hidden">
+            <div class="result-content">
+                <div class="success-icon">✓</div>
+                <h3>PDF Merged Successfully!</h3>
+                <p>Your PDF files have been combined into a single document.</p>
+                <div class="button-group">
+                    <button id="download-btn" class="primary-button">
+                        <span class="button-icon">⬇️</span>
+                        Download Merged PDF
+                    </button>
+                    <button id="reset-btn" class="secondary-button">Merge More PDFs</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card info-card">
+            <h2>How to Use</h2>
+            <ol>
+                <li>Click the upload area or drag and drop your PDF files</li>
+                <li>Arrange the PDFs in the desired order (drag to reorder)</li>
+                <li>Enter a name for your merged PDF file</li>
+                <li>Click "Merge PDFs" to combine your documents</li>
+                <li>Download your merged PDF when processing is complete</li>
+            </ol>
+            <div class="note">
+                <p><strong>Note:</strong> All processing happens in your browser. Your files are not uploaded to any server.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2023 PDF Merger | Privacy-Focused Browser-Based Tool</p>
+        <p><a href="index.html" class="footer-link">Image to PDF Converter</a> | <a href="pdf-merger.html" class="footer-link">PDF Merger</a></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+    <script src="js/pdf-merger.js"></script>
+</body>
+</html>
