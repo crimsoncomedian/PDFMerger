@@ -3,101 +3,452 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Merger</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="icon" href="assets/icons/favicon.ico">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/downloadjs/1.4.8/download.min.js"></script>
+    <meta property="og:title" content="Image to PDF Converter">
+    <meta property="og:description" content="Convert multiple images to a single PDF file">
+    <meta property="og:image" content="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter icon&w=64&h=64">
+    <meta property="og:type" content="website">
+    <title>Image to PDF Converter</title>
+    <link rel="icon" href="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter icon&w=32&h=32" type="image/png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="/chat/cdn/animate.min.css" rel="stylesheet">
+    <style>
+        .file-group-content {
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        .file-group-content.show {
+            display: block;
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>PDF Merger</h1>
-            <p>Combine multiple PDF files into a single document</p>
-        </header>
-
-        <div class="card">
-            <div class="upload-area">
-                <label for="file-upload" class="drop-zone" id="drop-area">
-                    <div class="drop-zone-content">
-                        <img src="assets/icons/pdf-icon.svg" alt="Upload" class="upload-icon">
-                        <p><strong>Click to upload</strong> or drag and drop</p>
-                        <p class="small">PDF files only (max 20 files)</p>
-                    </div>
-                    <input id="file-upload" type="file" accept=".pdf" multiple>
-                </label>
-            </div>
-
-            <div id="file-list-container" class="hidden">
-                <h3>Selected PDF Files</h3>
-                <p class="small">Drag files to reorder them. The order below determines the order in the merged PDF.</p>
-                <div class="file-list-wrapper">
-                    <ul id="file-list" class="sortable-list"></ul>
-                </div>
-                <div class="file-list-actions">
-                    <button id="clear-btn" class="text-button">Clear All</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="pdf-name">Output PDF File Name</label>
-                <input id="pdf-name" type="text" placeholder="Enter file name (without .pdf)" value="merged_document">
-            </div>
-
-            <div class="button-container">
-                <button id="merge-btn" class="primary-button" disabled>
-                    <span class="button-icon">🔄</span>
-                    Merge PDFs
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Image to PDF Converter</h1>
+            
+            <div class="mb-6 text-center">
+                <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" multiple class="hidden">
+                <button id="selectFiles" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 flex items-center justify-center mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                    Select Images
                 </button>
             </div>
-        </div>
-
-        <div id="progress-container" class="card hidden">
-            <div class="progress-header">
-                <span>Processing PDF files...</span>
-                <span id="progress-text">0%</span>
+            
+            <div id="fileCount" class="text-center font-semibold text-gray-700 mb-2">No files selected</div>
+            
+            <div id="imageLimitWarning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 hidden">
+                <p class="font-bold">Maximum 100 images allowed</p>
+                <p>Only the first 100 images will be processed.</p>
             </div>
-            <div class="progress-bar-container">
-                <div id="progress-bar"></div>
+            
+            <div id="fileList" class="border border-gray-200 rounded-lg p-4 mb-6 min-h-[100px] max-h-[400px] overflow-y-auto bg-gray-50">
+                <p class="text-gray-500 text-center">No files selected</p>
             </div>
-        </div>
-
-        <div id="result-container" class="card hidden">
-            <div class="result-content">
-                <div class="success-icon">✓</div>
-                <h3>PDF Merged Successfully!</h3>
-                <p>Your PDF files have been combined into a single document.</p>
-                <div class="button-group">
-                    <button id="download-btn" class="primary-button">
-                        <span class="button-icon">⬇️</span>
-                        Download Merged PDF
-                    </button>
-                    <button id="reset-btn" class="secondary-button">Merge More PDFs</button>
+            
+            <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="font-bold text-gray-700 mb-3">PDF Options</h3>
+                <div class="flex items-center mb-2">
+                    <label for="pdfQuality" class="mr-3 text-gray-700">PDF Quality:</label>
+                    <select id="pdfQuality" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="0.7">Low (smaller file)</option>
+                        <option value="0.85" selected>Medium</option>
+                        <option value="1.0">High (larger file)</option>
+                    </select>
                 </div>
             </div>
-        </div>
-
-        <div class="card info-card">
-            <h2>How to Use</h2>
-            <ol>
-                <li>Click the upload area or drag and drop your PDF files</li>
-                <li>Arrange the PDFs in the desired order (drag to reorder)</li>
-                <li>Enter a name for your merged PDF file</li>
-                <li>Click "Merge PDFs" to combine your documents</li>
-                <li>Download your merged PDF when processing is complete</li>
-            </ol>
-            <div class="note">
-                <p><strong>Note:</strong> All processing happens in your browser. Your files are not uploaded to any server.</p>
+            
+            <div class="text-center">
+                <button id="convertBtn" disabled class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    Convert to PDF
+                </button>
             </div>
+            
+            <div id="progressContainer" class="mt-6 hidden">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span id="progressText">Processing...</span>
+                    <span id="progressPercentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="progressBar" class="bg-green-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div id="status" class="mt-4 text-center font-medium"></div>
         </div>
     </div>
 
-    <footer>
-        <p>© 2023 PDF Merger | Privacy-Focused Browser-Based Tool</p>
-        <p><a href="index.html" class="footer-link">Image to PDF Converter</a> | <a href="pdf-merger.html" class="footer-link">PDF Merger</a></p>
-    </footer>
+    <script>
+        // Initialize variables
+        const fileInput = document.getElementById('fileInput');
+        const selectFilesBtn = document.getElementById('selectFiles');
+        const fileList = document.getElementById('fileList');
+        const fileCountDiv = document.getElementById('fileCount');
+        const convertBtn = document.getElementById('convertBtn');
+        const statusDiv = document.getElementById('status');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const pdfQualitySelect = document.getElementById('pdfQuality');
+        const imageLimitWarning = document.getElementById('imageLimitWarning');
+        const MAX_IMAGES = 100;
+        let selectedFiles = [];
 
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
-    <script src="js/pdf-merger.js"></script>
+        // Event listeners
+        selectFilesBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelection);
+        convertBtn.addEventListener('click', convertToPDF);
+
+        // Handle file selection
+        function handleFileSelection(e) {
+            const files = Array.from(e.target.files);
+            
+            if (files.length === 0) return;
+            
+            // Filter for image files
+            const imageFiles = files.filter(file => 
+                file.type === 'image/jpeg' || 
+                file.type === 'image/png' || 
+                file.type === 'image/jpg'
+            );
+            
+            // Add new files to the selection
+            selectedFiles = [...selectedFiles, ...imageFiles];
+            
+            // Check if we exceed the limit
+            if (selectedFiles.length > MAX_IMAGES) {
+                imageLimitWarning.classList.remove('hidden');
+                selectedFiles = selectedFiles.slice(0, MAX_IMAGES);
+            } else {
+                imageLimitWarning.classList.add('hidden');
+            }
+            
+            updateFileList();
+            
+            // Reset file input
+            fileInput.value = '';
+        }
+
+        // Update the file list display
+        function updateFileList() {
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = '<p class="text-gray-500 text-center">No files selected</p>';
+                fileCountDiv.textContent = 'No files selected';
+                convertBtn.disabled = true;
+                return;
+            }
+            
+            fileCountDiv.textContent = `${selectedFiles.length} files selected`;
+            fileList.innerHTML = '';
+            
+            // Group files for better display when there are many
+            const fileGroups = [];
+            const groupSize = 10;
+            
+            for (let i = 0; i < selectedFiles.length; i += groupSize) {
+                fileGroups.push(selectedFiles.slice(i, i + groupSize));
+            }
+            
+            fileGroups.forEach((group, groupIndex) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'mb-3 bg-white border border-gray-200 rounded-lg overflow-hidden';
+                
+                const groupHeader = document.createElement('div');
+                groupHeader.className = 'bg-gray-100 px-4 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-200 transition-colors';
+                groupHeader.innerHTML = `
+                    <span class="font-medium">Group ${groupIndex + 1} (${group.length} files)</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                `;
+                
+                const groupContent = document.createElement('div');
+                groupContent.className = 'file-group-content px-4 py-2';
+                groupContent.id = `group-${groupIndex}`;
+                
+                group.forEach((file, fileIndex) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'flex justify-between items-center py-2 border-b border-gray-100 last:border-0';
+                    
+                    const fileName = document.createElement('span');
+                    fileName.className = 'truncate max-w-[80%]';
+                    fileName.textContent = file.name;
+                    
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'text-xs text-gray-500';
+                    fileSize.textContent = formatFileSize(file.size);
+                    
+                    const fileInfo = document.createElement('div');
+                    fileInfo.className = 'flex flex-col';
+                    fileInfo.appendChild(fileName);
+                    fileInfo.appendChild(fileSize);
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'text-red-500 hover:text-red-700 transition-colors';
+                    removeBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    `;
+                    removeBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        const globalIndex = groupIndex * groupSize + fileIndex;
+                        removeFile(globalIndex);
+                    };
+                    
+                    fileItem.appendChild(fileInfo);
+                    fileItem.appendChild(removeBtn);
+                    groupContent.appendChild(fileItem);
+                });
+                
+                groupHeader.onclick = () => {
+                    groupContent.classList.toggle('show');
+                    const arrow = groupHeader.querySelector('svg');
+                    arrow.classList.toggle('rotate-180');
+                };
+                
+                groupDiv.appendChild(groupHeader);
+                groupDiv.appendChild(groupContent);
+                fileList.appendChild(groupDiv);
+            });
+            
+            convertBtn.disabled = false;
+        }
+
+        // Format file size for display
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // Remove a file from the selection
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            if (selectedFiles.length <= MAX_IMAGES) {
+                imageLimitWarning.classList.add('hidden');
+            }
+            updateFileList();
+        }
+
+        // Convert images to PDF
+        function convertToPDF() {
+            if (selectedFiles.length === 0) return;
+            
+            statusDiv.textContent = '';
+            convertBtn.disabled = true;
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Preparing...';
+            progressPercentage.textContent = '0%';
+            
+            // Get quality setting
+            const quality = parseFloat(pdfQualitySelect.value);
+            
+            // Use setTimeout to allow the UI to update
+            setTimeout(() => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF();
+                    
+                    // Process images with improved memory management
+                    processImagesOptimized(pdf, quality);
+                } catch (error) {
+                    showError(`Error initializing PDF: ${error.message}`);
+                }
+            }, 100);
+        }
+
+        // Process images with optimized memory management
+        function processImagesOptimized(pdf, quality) {
+            let currentIndex = 0;
+            const totalImages = selectedFiles.length;
+            
+            // Process images in small batches to prevent memory issues
+            function processNextBatch() {
+                if (currentIndex >= totalImages) {
+                    // All images processed, save the PDF
+                    try {
+                        pdf.save('images.pdf');
+                        showSuccess('PDF created successfully!');
+                    } catch (error) {
+                        showError(`Error saving PDF: ${error.message}`);
+                    }
+                    return;
+                }
+                
+                // Process one image at a time
+                processNextImage();
+            }
+            
+            function processNextImage() {
+                if (currentIndex >= totalImages) {
+                    processNextBatch();
+                    return;
+                }
+                
+                const file = selectedFiles[currentIndex];
+                const progress = Math.round((currentIndex / totalImages) * 100);
+                
+                updateProgress(progress, `Processing image ${currentIndex + 1} of ${totalImages}`);
+                
+                // Add a new page for each image except the first one
+                if (currentIndex > 0) {
+                    pdf.addPage();
+                }
+                
+                // Use createImageBitmap for better performance when available
+                if (typeof createImageBitmap !== 'undefined') {
+                    processWithImageBitmap(file);
+                } else {
+                    processWithObjectURL(file);
+                }
+            }
+            
+            function processWithImageBitmap(file) {
+                createImageBitmap(file)
+                    .then(bitmap => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Set canvas dimensions to match the bitmap
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                        
+                        // Draw the bitmap to the canvas
+                        ctx.drawImage(bitmap, 0, 0);
+                        
+                        // Calculate dimensions to fit the page
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        
+                        let imgWidth = bitmap.width;
+                        let imgHeight = bitmap.height;
+                        
+                        // Scale image to fit the page
+                        const ratio = Math.min(
+                            pageWidth / imgWidth, 
+                            pageHeight / imgHeight
+                        );
+                        
+                        imgWidth = imgWidth * ratio;
+                        imgHeight = imgHeight * ratio;
+                        
+                        // Center the image on the page
+                        const x = (pageWidth - imgWidth) / 2;
+                        const y = (pageHeight - imgHeight) / 2;
+                        
+                        // Add image with quality setting
+                        const imgData = canvas.toDataURL('image/jpeg', quality);
+                        pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+                        
+                        // Clean up memory
+                        bitmap.close();
+                        canvas.width = 1;
+                        canvas.height = 1;
+                        ctx.clearRect(0, 0, 1, 1);
+                        
+                        // Move to next image
+                        currentIndex++;
+                        
+                        // Use setTimeout to prevent UI freezing
+                        setTimeout(processNextImage, 0);
+                    })
+                    .catch(error => {
+                        console.error(`Error processing image ${currentIndex + 1}: ${error.message}`);
+                        currentIndex++;
+                        setTimeout(processNextImage, 0);
+                    });
+            }
+            
+            function processWithObjectURL(file) {
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
+                
+                img.onload = function() {
+                    try {
+                        // Calculate dimensions to fit the page
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        
+                        let imgWidth = img.width;
+                        let imgHeight = img.height;
+                        
+                        // Scale image to fit the page
+                        const ratio = Math.min(
+                            pageWidth / imgWidth, 
+                            pageHeight / imgHeight
+                        );
+                        
+                        imgWidth = imgWidth * ratio;
+                        imgHeight = imgHeight * ratio;
+                        
+                        // Center the image on the page
+                        const x = (pageWidth - imgWidth) / 2;
+                        const y = (pageHeight - imgHeight) / 2;
+                        
+                        // Add image with quality setting
+                        pdf.addImage(img, 'JPEG', x, y, imgWidth, imgHeight, undefined, 'FAST', quality);
+                        
+                        // Clean up memory
+                        URL.revokeObjectURL(objectUrl);
+                        img.src = '';
+                        
+                        // Move to next image
+                        currentIndex++;
+                        
+                        // Use setTimeout to prevent UI freezing
+                        setTimeout(processNextImage, 0);
+                    } catch (error) {
+                        console.error(`Error adding image to PDF: ${error.message}`);
+                        URL.revokeObjectURL(objectUrl);
+                        currentIndex++;
+                        setTimeout(processNextImage, 0);
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.error(`Error loading image: ${file.name}`);
+                    URL.revokeObjectURL(objectUrl);
+                    
+                    // Skip this image and continue
+                    currentIndex++;
+                    setTimeout(processNextImage, 0);
+                };
+                
+                img.src = objectUrl;
+            }
+            
+            // Start processing
+            processNextBatch();
+        }
+        
+        // Update progress bar and text
+        function updateProgress(percent, message) {
+            progressBar.style.width = `${percent}%`;
+            progressText.textContent = message;
+            progressPercentage.textContent = `${percent}%`;
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'mt-4 text-center font-medium text-green-600';
+            convertBtn.disabled = false;
+            progressContainer.classList.add('hidden');
+        }
+        
+        // Show error message
+        function showError(message) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'mt-4 text-center font-medium text-red-600';
+            convertBtn.disabled = false;
+            progressContainer.classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
