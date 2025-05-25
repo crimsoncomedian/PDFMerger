@@ -3,452 +3,694 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to PDF Converter</title>
     <meta property="og:title" content="Image to PDF Converter">
     <meta property="og:description" content="Convert multiple images to a single PDF file">
-    <meta property="og:image" content="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter icon&w=64&h=64">
+    <meta property="og:image" content="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter app icon&w=64&h=64">
     <meta property="og:type" content="website">
-    <title>Image to PDF Converter</title>
-    <link rel="icon" href="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter icon&w=32&h=32" type="image/png">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="icon" href="https://cdn.simulationtheory.ai/gasset/?asset=img&prompt=document converter app icon&w=32&h=32" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/chat/cdn/pdf-lib.min.js"></script>
+    <script src="/chat/cdn/papaparse.min.js"></script>
     <link href="/chat/cdn/animate.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="/chat/cdn/all.min.css" rel="stylesheet">
+    <script src="/chat/cdn/all.min.js" crossorigin></script>
+    
     <style>
-        .file-group-content {
-            max-height: 200px;
-            overflow-y: auto;
-            display: none;
+        @font-face {
+            font-family: 'Font Awesome 6 Free';
+            font-path: '/chat/webfonts/fa-regular-400';
+            src: url('/chat/webfonts/fa-regular-400.woff2') format('woff2'),
+                url('/chat/webfonts/fa-regular-400.ttf') format('truetype');
         }
-        .file-group-content.show {
-            display: block;
+
+        @font-face {
+            font-family: 'Font Awesome 6 Free';
+            font-path: '/chat/webfonts/fa-solid-900';
+            src: url('/chat/webfonts/fa-solid-900.woff2') format('woff2'),
+                url('/chat/webfonts/fa-solid-900.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Font Awesome 6 Brands';
+            font-path: '/chat/webfonts/fa-brands-400';
+            src: url('/chat/webfonts/fa-brands-400.woff2') format('woff2'),
+                url('/chat/webfonts/fa-brands-400.ttf') format('truetype');
+        }
+        
+        .file-drop-area {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        
+        .file-drop-area.active {
+            border-color: #4299e1;
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        .thumbnail-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-3xl">
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Image to PDF Converter</h1>
+    <div class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8 animate__animated animate__fadeIn">
+            <div class="flex items-center justify-center mb-6">
+                <i class="fas fa-file-pdf text-red-600 text-4xl mr-3"></i>
+                <h1 class="text-3xl font-bold text-gray-800">Image to PDF Converter</h1>
+            </div>
             
-            <div class="mb-6 text-center">
-                <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" multiple class="hidden">
-                <button id="selectFiles" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 flex items-center justify-center mx-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                    </svg>
-                    Select Images
+            <div class="mb-6">
+                <p class="text-gray-600 text-center">Convert up to 100 images into a single PDF document</p>
+            </div>
+            
+            <div id="dropArea" class="file-drop-area rounded-lg p-8 text-center mb-6 cursor-pointer">
+                <i class="fas fa-cloud-upload-alt text-blue-500 text-4xl mb-3"></i>
+                <p class="text-gray-700 mb-2">Drag & drop images here or</p>
+                <label class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg cursor-pointer transition-colors">
+                    <span>Browse Files</span>
+                    <input type="file" id="fileInput" multiple accept="image/*" class="hidden" />
+                </label>
+                <p class="text-sm text-gray-500 mt-2">Maximum 100 images allowed</p>
+            </div>
+            
+            <div id="fileList" class="hidden mb-6">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Selected Images (<span id="fileCount">0</span>)</h3>
+                <div id="thumbnailContainer" class="thumbnail-container border border-gray-200 rounded-lg p-3"></div>
+                <button id="clearFiles" class="mt-3 text-red-500 hover:text-red-700 text-sm flex items-center">
+                    <i class="fas fa-trash mr-1"></i> Clear all
                 </button>
             </div>
             
-            <div id="fileCount" class="text-center font-semibold text-gray-700 mb-2">No files selected</div>
-            
-            <div id="imageLimitWarning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 hidden">
-                <p class="font-bold">Maximum 100 images allowed</p>
-                <p>Only the first 100 images will be processed.</p>
-            </div>
-            
-            <div id="fileList" class="border border-gray-200 rounded-lg p-4 mb-6 min-h-[100px] max-h-[400px] overflow-y-auto bg-gray-50">
-                <p class="text-gray-500 text-center">No files selected</p>
-            </div>
-            
-            <div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h3 class="font-bold text-gray-700 mb-3">PDF Options</h3>
-                <div class="flex items-center mb-2">
-                    <label for="pdfQuality" class="mr-3 text-gray-700">PDF Quality:</label>
-                    <select id="pdfQuality" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="0.7">Low (smaller file)</option>
-                        <option value="0.85" selected>Medium</option>
-                        <option value="1.0">High (larger file)</option>
+            <div id="options" class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="pageSize">
+                        Page Size
+                    </label>
+                    <select id="pageSize" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="A4">A4 (210 × 297 mm)</option>
+                        <option value="Letter">Letter (8.5 × 11 in)</option>
+                        <option value="Legal">Legal (8.5 × 14 in)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="orientation">
+                        Orientation
+                    </label>
+                    <select id="orientation" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="imagePerPage">
+                        Images Per Page
+                    </label>
+                    <select id="imagePerPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1">1 image per page</option>
+                        <option value="2">2 images per page</option>
+                        <option value="4">4 images per page</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="imageQuality">
+                        Image Quality
+                    </label>
+                    <select id="imageQuality" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
                     </select>
                 </div>
             </div>
             
-            <div class="text-center">
-                <button id="convertBtn" disabled class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed">
+            <div class="flex justify-center">
+                <button id="convertBtn" class="bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded-lg font-bold transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-file-pdf mr-2"></i>
                     Convert to PDF
                 </button>
             </div>
+        </div>
+        
+        <div id="progressContainer" class="hidden bg-white rounded-lg shadow-lg p-6 mb-8 animate__animated animate__fadeIn">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Converting Images to PDF</h2>
             
-            <div id="progressContainer" class="mt-6 hidden">
-                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                    <span id="progressText">Processing...</span>
-                    <span id="progressPercentage">0%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-4">
-                    <div id="progressBar" class="bg-green-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: 0%"></div>
+            <div class="flex items-center justify-center mb-4">
+                <div class="relative h-32 w-32">
+                    <svg class="progress-ring" width="120" height="120">
+                        <circle class="text-gray-200" stroke-width="8" stroke="currentColor" fill="transparent" r="54" cx="60" cy="60"/>
+                        <circle id="progressRing" class="text-blue-500" stroke-width="8" stroke="currentColor" fill="transparent" r="54" cx="60" cy="60" stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="progressPercent" class="text-2xl font-bold text-gray-700">0%</span>
+                    </div>
                 </div>
             </div>
             
-            <div id="status" class="mt-4 text-center font-medium"></div>
+            <div class="mb-2 flex justify-between text-sm text-gray-600">
+                <span id="currentFile">Processing image 0 of 0</span>
+                <span id="timeRemaining">Estimating time remaining...</span>
+            </div>
+            
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div id="progressBar" class="bg-blue-500 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            
+            <p id="statusMessage" class="text-center text-gray-600 mt-4">Initializing conversion process...</p>
+        </div>
+        
+        <div id="resultContainer" class="hidden bg-white rounded-lg shadow-lg p-6 animate__animated animate__fadeIn">
+            <div class="text-center mb-6">
+                <div class="inline-block p-3 bg-green-100 rounded-full mb-4">
+                    <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">PDF Created Successfully!</h2>
+                <p class="text-gray-600">Your images have been converted into a PDF document.</p>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center">
+                <button id="downloadBtn" class="bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded-lg font-bold transition-colors flex items-center mb-4">
+                    <i class="fas fa-download mr-2"></i>
+                    Download PDF
+                </button>
+                
+                <button id="newConversionBtn" class="text-blue-500 hover:text-blue-700 font-medium flex items-center">
+                    <i class="fas fa-redo mr-2"></i>
+                    Start New Conversion
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Initialize variables
-        const fileInput = document.getElementById('fileInput');
-        const selectFilesBtn = document.getElementById('selectFiles');
-        const fileList = document.getElementById('fileList');
-        const fileCountDiv = document.getElementById('fileCount');
-        const convertBtn = document.getElementById('convertBtn');
-        const statusDiv = document.getElementById('status');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const progressPercentage = document.getElementById('progressPercentage');
-        const pdfQualitySelect = document.getElementById('pdfQuality');
-        const imageLimitWarning = document.getElementById('imageLimitWarning');
-        const MAX_IMAGES = 100;
-        let selectedFiles = [];
-
-        // Event listeners
-        selectFilesBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', handleFileSelection);
-        convertBtn.addEventListener('click', convertToPDF);
-
-        // Handle file selection
-        function handleFileSelection(e) {
-            const files = Array.from(e.target.files);
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileList = document.getElementById('fileList');
+            const fileCount = document.getElementById('fileCount');
+            const thumbnailContainer = document.getElementById('thumbnailContainer');
+            const clearFilesBtn = document.getElementById('clearFiles');
+            const convertBtn = document.getElementById('convertBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressRing = document.getElementById('progressRing');
+            const progressPercent = document.getElementById('progressPercent');
+            const currentFile = document.getElementById('currentFile');
+            const timeRemaining = document.getElementById('timeRemaining');
+            const statusMessage = document.getElementById('statusMessage');
+            const resultContainer = document.getElementById('resultContainer');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const newConversionBtn = document.getElementById('newConversionBtn');
             
-            if (files.length === 0) return;
+            // Variables
+            let selectedFiles = [];
+            let pdfBytes = null;
+            let startTime = null;
+            let processedImages = 0;
             
-            // Filter for image files
-            const imageFiles = files.filter(file => 
-                file.type === 'image/jpeg' || 
-                file.type === 'image/png' || 
-                file.type === 'image/jpg'
-            );
+            // Constants
+            const MAX_FILES = 100;
+            const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 54; // r=54
             
-            // Add new files to the selection
-            selectedFiles = [...selectedFiles, ...imageFiles];
+            // Initialize
+            convertBtn.disabled = true;
             
-            // Check if we exceed the limit
-            if (selectedFiles.length > MAX_IMAGES) {
-                imageLimitWarning.classList.remove('hidden');
-                selectedFiles = selectedFiles.slice(0, MAX_IMAGES);
-            } else {
-                imageLimitWarning.classList.add('hidden');
-            }
-            
-            updateFileList();
-            
-            // Reset file input
-            fileInput.value = '';
-        }
-
-        // Update the file list display
-        function updateFileList() {
-            if (selectedFiles.length === 0) {
-                fileList.innerHTML = '<p class="text-gray-500 text-center">No files selected</p>';
-                fileCountDiv.textContent = 'No files selected';
-                convertBtn.disabled = true;
-                return;
-            }
-            
-            fileCountDiv.textContent = `${selectedFiles.length} files selected`;
-            fileList.innerHTML = '';
-            
-            // Group files for better display when there are many
-            const fileGroups = [];
-            const groupSize = 10;
-            
-            for (let i = 0; i < selectedFiles.length; i += groupSize) {
-                fileGroups.push(selectedFiles.slice(i, i + groupSize));
-            }
-            
-            fileGroups.forEach((group, groupIndex) => {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'mb-3 bg-white border border-gray-200 rounded-lg overflow-hidden';
-                
-                const groupHeader = document.createElement('div');
-                groupHeader.className = 'bg-gray-100 px-4 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-200 transition-colors';
-                groupHeader.innerHTML = `
-                    <span class="font-medium">Group ${groupIndex + 1} (${group.length} files)</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                `;
-                
-                const groupContent = document.createElement('div');
-                groupContent.className = 'file-group-content px-4 py-2';
-                groupContent.id = `group-${groupIndex}`;
-                
-                group.forEach((file, fileIndex) => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'flex justify-between items-center py-2 border-b border-gray-100 last:border-0';
-                    
-                    const fileName = document.createElement('span');
-                    fileName.className = 'truncate max-w-[80%]';
-                    fileName.textContent = file.name;
-                    
-                    const fileSize = document.createElement('span');
-                    fileSize.className = 'text-xs text-gray-500';
-                    fileSize.textContent = formatFileSize(file.size);
-                    
-                    const fileInfo = document.createElement('div');
-                    fileInfo.className = 'flex flex-col';
-                    fileInfo.appendChild(fileName);
-                    fileInfo.appendChild(fileSize);
-                    
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'text-red-500 hover:text-red-700 transition-colors';
-                    removeBtn.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    `;
-                    removeBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        const globalIndex = groupIndex * groupSize + fileIndex;
-                        removeFile(globalIndex);
-                    };
-                    
-                    fileItem.appendChild(fileInfo);
-                    fileItem.appendChild(removeBtn);
-                    groupContent.appendChild(fileItem);
-                });
-                
-                groupHeader.onclick = () => {
-                    groupContent.classList.toggle('show');
-                    const arrow = groupHeader.querySelector('svg');
-                    arrow.classList.toggle('rotate-180');
-                };
-                
-                groupDiv.appendChild(groupHeader);
-                groupDiv.appendChild(groupContent);
-                fileList.appendChild(groupDiv);
+            // Event Listeners for Drag and Drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
             });
             
-            convertBtn.disabled = false;
-        }
-
-        // Format file size for display
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' bytes';
-            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            else return (bytes / 1048576).toFixed(1) + ' MB';
-        }
-
-        // Remove a file from the selection
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            if (selectedFiles.length <= MAX_IMAGES) {
-                imageLimitWarning.classList.add('hidden');
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
-            updateFileList();
-        }
-
-        // Convert images to PDF
-        function convertToPDF() {
-            if (selectedFiles.length === 0) return;
             
-            statusDiv.textContent = '';
-            convertBtn.disabled = true;
-            progressContainer.classList.remove('hidden');
-            progressBar.style.width = '0%';
-            progressText.textContent = 'Preparing...';
-            progressPercentage.textContent = '0%';
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
             
-            // Get quality setting
-            const quality = parseFloat(pdfQualitySelect.value);
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
             
-            // Use setTimeout to allow the UI to update
-            setTimeout(() => {
-                try {
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF();
+            function highlight() {
+                dropArea.classList.add('active');
+            }
+            
+            function unhighlight() {
+                dropArea.classList.remove('active');
+            }
+            
+            // Handle file drop
+            dropArea.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+            
+            // Handle file input change
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+            
+            // Handle file selection
+            function handleFiles(files) {
+                if (files.length === 0) return;
+                
+                // Filter only image files
+                const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+                
+                // Check if adding these files would exceed the limit
+                if (selectedFiles.length + imageFiles.length > MAX_FILES) {
+                    alert(`You can only select up to ${MAX_FILES} images. Currently selected: ${selectedFiles.length}`);
+                    return;
+                }
+                
+                // Add files to the selected files array
+                selectedFiles = [...selectedFiles, ...imageFiles];
+                
+                // Update UI
+                updateFileList();
+                
+                // Enable convert button if files are selected
+                convertBtn.disabled = selectedFiles.length === 0;
+            }
+            
+            // Update file list UI
+            function updateFileList() {
+                if (selectedFiles.length > 0) {
+                    fileList.classList.remove('hidden');
+                    fileCount.textContent = selectedFiles.length;
                     
-                    // Process images with improved memory management
-                    processImagesOptimized(pdf, quality);
-                } catch (error) {
-                    showError(`Error initializing PDF: ${error.message}`);
-                }
-            }, 100);
-        }
-
-        // Process images with optimized memory management
-        function processImagesOptimized(pdf, quality) {
-            let currentIndex = 0;
-            const totalImages = selectedFiles.length;
-            
-            // Process images in small batches to prevent memory issues
-            function processNextBatch() {
-                if (currentIndex >= totalImages) {
-                    // All images processed, save the PDF
-                    try {
-                        pdf.save('images.pdf');
-                        showSuccess('PDF created successfully!');
-                    } catch (error) {
-                        showError(`Error saving PDF: ${error.message}`);
-                    }
-                    return;
-                }
-                
-                // Process one image at a time
-                processNextImage();
-            }
-            
-            function processNextImage() {
-                if (currentIndex >= totalImages) {
-                    processNextBatch();
-                    return;
-                }
-                
-                const file = selectedFiles[currentIndex];
-                const progress = Math.round((currentIndex / totalImages) * 100);
-                
-                updateProgress(progress, `Processing image ${currentIndex + 1} of ${totalImages}`);
-                
-                // Add a new page for each image except the first one
-                if (currentIndex > 0) {
-                    pdf.addPage();
-                }
-                
-                // Use createImageBitmap for better performance when available
-                if (typeof createImageBitmap !== 'undefined') {
-                    processWithImageBitmap(file);
-                } else {
-                    processWithObjectURL(file);
-                }
-            }
-            
-            function processWithImageBitmap(file) {
-                createImageBitmap(file)
-                    .then(bitmap => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        // Set canvas dimensions to match the bitmap
-                        canvas.width = bitmap.width;
-                        canvas.height = bitmap.height;
-                        
-                        // Draw the bitmap to the canvas
-                        ctx.drawImage(bitmap, 0, 0);
-                        
-                        // Calculate dimensions to fit the page
-                        const pageWidth = pdf.internal.pageSize.getWidth();
-                        const pageHeight = pdf.internal.pageSize.getHeight();
-                        
-                        let imgWidth = bitmap.width;
-                        let imgHeight = bitmap.height;
-                        
-                        // Scale image to fit the page
-                        const ratio = Math.min(
-                            pageWidth / imgWidth, 
-                            pageHeight / imgHeight
-                        );
-                        
-                        imgWidth = imgWidth * ratio;
-                        imgHeight = imgHeight * ratio;
-                        
-                        // Center the image on the page
-                        const x = (pageWidth - imgWidth) / 2;
-                        const y = (pageHeight - imgHeight) / 2;
-                        
-                        // Add image with quality setting
-                        const imgData = canvas.toDataURL('image/jpeg', quality);
-                        pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
-                        
-                        // Clean up memory
-                        bitmap.close();
-                        canvas.width = 1;
-                        canvas.height = 1;
-                        ctx.clearRect(0, 0, 1, 1);
-                        
-                        // Move to next image
-                        currentIndex++;
-                        
-                        // Use setTimeout to prevent UI freezing
-                        setTimeout(processNextImage, 0);
-                    })
-                    .catch(error => {
-                        console.error(`Error processing image ${currentIndex + 1}: ${error.message}`);
-                        currentIndex++;
-                        setTimeout(processNextImage, 0);
+                    // Clear thumbnails
+                    thumbnailContainer.innerHTML = '';
+                    
+                    // Add thumbnails for each file
+                    selectedFiles.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const thumbnail = document.createElement('div');
+                            thumbnail.className = 'relative group';
+                            
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'thumbnail shadow-sm';
+                            img.alt = file.name;
+                            
+                            const removeBtn = document.createElement('button');
+                            removeBtn.className = 'absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+                            removeBtn.innerHTML = '×';
+                            removeBtn.onclick = function() {
+                                selectedFiles.splice(index, 1);
+                                updateFileList();
+                                convertBtn.disabled = selectedFiles.length === 0;
+                            };
+                            
+                            thumbnail.appendChild(img);
+                            thumbnail.appendChild(removeBtn);
+                            thumbnailContainer.appendChild(thumbnail);
+                        };
+                        reader.readAsDataURL(file);
                     });
+                } else {
+                    fileList.classList.add('hidden');
+                }
             }
             
-            function processWithObjectURL(file) {
-                const objectUrl = URL.createObjectURL(file);
-                const img = new Image();
+            // Clear files button
+            clearFilesBtn.addEventListener('click', function() {
+                selectedFiles = [];
+                updateFileList();
+                convertBtn.disabled = true;
+            });
+            
+            // Convert button
+            convertBtn.addEventListener('click', async function() {
+                if (selectedFiles.length === 0) return;
                 
-                img.onload = function() {
-                    try {
-                        // Calculate dimensions to fit the page
-                        const pageWidth = pdf.internal.pageSize.getWidth();
-                        const pageHeight = pdf.internal.pageSize.getHeight();
-                        
-                        let imgWidth = img.width;
-                        let imgHeight = img.height;
-                        
-                        // Scale image to fit the page
-                        const ratio = Math.min(
-                            pageWidth / imgWidth, 
-                            pageHeight / imgHeight
-                        );
-                        
-                        imgWidth = imgWidth * ratio;
-                        imgHeight = imgHeight * ratio;
-                        
-                        // Center the image on the page
-                        const x = (pageWidth - imgWidth) / 2;
-                        const y = (pageHeight - imgHeight) / 2;
-                        
-                        // Add image with quality setting
-                        pdf.addImage(img, 'JPEG', x, y, imgWidth, imgHeight, undefined, 'FAST', quality);
-                        
-                        // Clean up memory
-                        URL.revokeObjectURL(objectUrl);
-                        img.src = '';
-                        
-                        // Move to next image
-                        currentIndex++;
-                        
-                        // Use setTimeout to prevent UI freezing
-                        setTimeout(processNextImage, 0);
-                    } catch (error) {
-                        console.error(`Error adding image to PDF: ${error.message}`);
-                        URL.revokeObjectURL(objectUrl);
-                        currentIndex++;
-                        setTimeout(processNextImage, 0);
-                    }
-                };
+                // Hide main UI and show progress
+                document.querySelector('.container').firstElementChild.classList.add('hidden');
+                progressContainer.classList.remove('hidden');
                 
-                img.onerror = function() {
-                    console.error(`Error loading image: ${file.name}`);
-                    URL.revokeObjectURL(objectUrl);
+                // Reset progress
+                progressBar.style.width = '0%';
+                progressRing.style.strokeDashoffset = CIRCLE_CIRCUMFERENCE;
+                progressPercent.textContent = '0%';
+                currentFile.textContent = `Processing image 0 of ${selectedFiles.length}`;
+                timeRemaining.textContent = 'Estimating time remaining...';
+                statusMessage.textContent = 'Initializing conversion process...';
+                
+                // Start conversion
+                startTime = Date.now();
+                processedImages = 0;
+                
+                try {
+                    await convertImagesToPDF();
+                } catch (error) {
+                    console.error('Error converting images to PDF:', error);
+                    statusMessage.textContent = 'Error: ' + error.message;
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        document.querySelector('.container').firstElementChild.classList.remove('hidden');
+                    }, 3000);
+                }
+            });
+            
+            // Download button
+            downloadBtn.addEventListener('click', function() {
+                if (!pdfBytes) return;
+                
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `converted_images_${new Date().toISOString().slice(0,10)}.pdf`;
+                link.click();
+                
+                // Save conversion data
+                const conversionData = [{
+                    timestamp: new Date().toISOString(),
+                    fileCount: selectedFiles.length,
+                    fileSize: pdfBytes.length,
+                    conversionTime: (Date.now() - startTime) / 1000
+                }];
+                
+                window.save_data_to_csv(conversionData);
+            });
+            
+            // New conversion button
+            newConversionBtn.addEventListener('click', function() {
+                // Reset everything
+                selectedFiles = [];
+                pdfBytes = null;
+                updateFileList();
+                convertBtn.disabled = true;
+                
+                // Show main UI
+                resultContainer.classList.add('hidden');
+                document.querySelector('.container').firstElementChild.classList.remove('hidden');
+            });
+            
+            // Convert images to PDF
+            async function convertImagesToPDF() {
+                const { PDFDocument, PageSizes, rgb } = PDFLib;
+                
+                // Get options
+                const pageSizeOption = document.getElementById('pageSize').value;
+                const orientationOption = document.getElementById('orientation').value;
+                const imagesPerPageOption = parseInt(document.getElementById('imagePerPage').value);
+                const imageQualityOption = document.getElementById('imageQuality').value;
+                
+                // Determine page size
+                let pageSize;
+                switch (pageSizeOption) {
+                    case 'A4':
+                        pageSize = PageSizes.A4;
+                        break;
+                    case 'Letter':
+                        pageSize = PageSizes.LETTER;
+                        break;
+                    case 'Legal':
+                        pageSize = PageSizes.LEGAL;
+                        break;
+                    default:
+                        pageSize = PageSizes.A4;
+                }
+                
+                // Apply orientation
+                if (orientationOption === 'landscape') {
+                    pageSize = [pageSize[1], pageSize[0]]; // Swap width and height
+                }
+                
+                // Create PDF document
+                const pdfDoc = await PDFDocument.create();
+                
+                // Set up image quality
+                let compressionQuality;
+                switch (imageQualityOption) {
+                    case 'high':
+                        compressionQuality = 0.9;
+                        break;
+                    case 'medium':
+                        compressionQuality = 0.7;
+                        break;
+                    case 'low':
+                        compressionQuality = 0.5;
+                        break;
+                    default:
+                        compressionQuality = 0.7;
+                }
+                
+                // Process images in batches to avoid memory issues
+                const batchSize = 10;
+                const totalBatches = Math.ceil(selectedFiles.length / batchSize);
+                
+                for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+                    const batchStart = batchIndex * batchSize;
+                    const batchEnd = Math.min(batchStart + batchSize, selectedFiles.length);
+                    const batchFiles = selectedFiles.slice(batchStart, batchEnd);
                     
-                    // Skip this image and continue
-                    currentIndex++;
-                    setTimeout(processNextImage, 0);
-                };
+                    // Process each image in the batch
+                    for (let i = 0; i < batchFiles.length; i++) {
+                        const fileIndex = batchStart + i;
+                        const file = batchFiles[i];
+                        
+                        // Update progress
+                        updateProgress(fileIndex);
+                        
+                        try {
+                            // Read file as array buffer
+                            const imageBytes = await readFileAsArrayBuffer(file);
+                            
+                            // Determine image type and embed accordingly
+                            let image;
+                            if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+                                image = await pdfDoc.embedJpg(imageBytes);
+                            } else if (file.type === 'image/png') {
+                                image = await pdfDoc.embedPng(imageBytes);
+                            } else {
+                                // For other formats, convert to PNG first
+                                const pngBytes = await convertToPng(imageBytes);
+                                image = await pdfDoc.embedPng(pngBytes);
+                            }
+                            
+                            // Calculate how many images to place on this page
+                            const currentImageIndex = fileIndex % imagesPerPageOption;
+                            
+                            // Create a new page if needed
+                            if (currentImageIndex === 0) {
+                                pdfDoc.addPage(pageSize);
+                            }
+                            
+                            const page = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
+                            const { width, height } = page.getSize();
+                            
+                            // Calculate image dimensions and position based on images per page
+                            let imageWidth, imageHeight, x, y;
+                            
+                            if (imagesPerPageOption === 1) {
+                                // One image per page - fill the page with margins
+                                const margin = 40;
+                                imageWidth = width - (margin * 2);
+                                imageHeight = height - (margin * 2);
+                                x = margin;
+                                y = margin;
+                            } else if (imagesPerPageOption === 2) {
+                                // Two images per page - stack vertically
+                                const margin = 30;
+                                imageWidth = width - (margin * 2);
+                                imageHeight = (height - (margin * 3)) / 2;
+                                x = margin;
+                                y = margin + (currentImageIndex * (imageHeight + margin));
+                            } else if (imagesPerPageOption === 4) {
+                                // Four images per page - 2x2 grid
+                                const margin = 20;
+                                imageWidth = (width - (margin * 3)) / 2;
+                                imageHeight = (height - (margin * 3)) / 2;
+                                x = margin + (currentImageIndex % 2) * (imageWidth + margin);
+                                y = margin + Math.floor(currentImageIndex / 2) * (imageHeight + margin);
+                            }
+                            
+                            // Calculate scaling to maintain aspect ratio
+                            const imgRatio = image.width / image.height;
+                            const boxRatio = imageWidth / imageHeight;
+                            
+                            let scaledWidth, scaledHeight;
+                            if (imgRatio > boxRatio) {
+                                // Image is wider than the box
+                                scaledWidth = imageWidth;
+                                scaledHeight = imageWidth / imgRatio;
+                            } else {
+                                // Image is taller than the box
+                                scaledHeight = imageHeight;
+                                scaledWidth = imageHeight * imgRatio;
+                            }
+                            
+                            // Center the image in its allocated space
+                            const xOffset = x + (imageWidth - scaledWidth) / 2;
+                            const yOffset = y + (imageHeight - scaledHeight) / 2;
+                            
+                            // Draw the image
+                            page.drawImage(image, {
+                                x: xOffset,
+                                y: yOffset,
+                                width: scaledWidth,
+                                height: scaledHeight,
+                            });
+                            
+                            // Update processed count
+                            processedImages++;
+                            
+                        } catch (error) {
+                            console.error(`Error processing image ${fileIndex}:`, error);
+                            statusMessage.textContent = `Error processing image ${fileIndex + 1}: ${error.message}`;
+                        }
+                        
+                        // Small delay to allow UI updates
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                    
+                    // Force garbage collection between batches (not actually possible in JS, but helps browser)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
                 
-                img.src = objectUrl;
+                // Save the PDF
+                statusMessage.textContent = 'Finalizing PDF...';
+                pdfBytes = await pdfDoc.save();
+                
+                // Show result
+                progressContainer.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
             }
             
-            // Start processing
-            processNextBatch();
-        }
-        
-        // Update progress bar and text
-        function updateProgress(percent, message) {
-            progressBar.style.width = `${percent}%`;
-            progressText.textContent = message;
-            progressPercentage.textContent = `${percent}%`;
-        }
-        
-        // Show success message
-        function showSuccess(message) {
-            statusDiv.textContent = message;
-            statusDiv.className = 'mt-4 text-center font-medium text-green-600';
-            convertBtn.disabled = false;
-            progressContainer.classList.add('hidden');
-        }
-        
-        // Show error message
-        function showError(message) {
-            statusDiv.textContent = message;
-            statusDiv.className = 'mt-4 text-center font-medium text-red-600';
-            convertBtn.disabled = false;
-            progressContainer.classList.add('hidden');
-        }
+            // Helper function to read file as array buffer
+            function readFileAsArrayBuffer(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+            
+            // Helper function to convert image to PNG (for non-JPG/PNG formats)
+            function convertToPng(imageBytes) {
+                return new Promise((resolve, reject) => {
+                    const blob = new Blob([imageBytes]);
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        canvas.toBlob(blob => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsArrayBuffer(blob);
+                        }, 'image/png');
+                        
+                        URL.revokeObjectURL(url);
+                    };
+                    
+                    img.onerror = () => {
+                        URL.revokeObjectURL(url);
+                        reject(new Error('Failed to load image'));
+                    };
+                    
+                    img.src = url;
+                });
+            }
+            
+            // Update progress UI
+            function updateProgress(currentIndex) {
+                const progress = (currentIndex + 1) / selectedFiles.length;
+                const percent = Math.round(progress * 100);
+                
+                // Update progress bar and ring
+                progressBar.style.width = `${percent}%`;
+                progressRing.style.strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress);
+                progressPercent.textContent = `${percent}%`;
+                
+                // Update current file text
+                currentFile.textContent = `Processing image ${currentIndex + 1} of ${selectedFiles.length}`;
+                
+                // Calculate time remaining
+                if (currentIndex > 0) {
+                    const elapsedTime = Date.now() - startTime;
+                    const timePerImage = elapsedTime / (currentIndex + 1);
+                    const remainingImages = selectedFiles.length - (currentIndex + 1);
+                    const estimatedTimeRemaining = timePerImage * remainingImages;
+                    
+                    if (estimatedTimeRemaining > 0) {
+                        let timeText;
+                        if (estimatedTimeRemaining < 60000) {
+                            timeText = `${Math.round(estimatedTimeRemaining / 1000)} seconds`;
+                        } else {
+                            timeText = `${Math.round(estimatedTimeRemaining / 60000)} minutes`;
+                        }
+                        timeRemaining.textContent = `Estimated time remaining: ${timeText}`;
+                    }
+                }
+                
+                // Update status message
+                if (percent < 25) {
+                    statusMessage.textContent = 'Reading and processing images...';
+                } else if (percent < 50) {
+                    statusMessage.textContent = 'Converting images to PDF format...';
+                } else if (percent < 75) {
+                    statusMessage.textContent = 'Optimizing and arranging images...';
+                } else {
+                    statusMessage.textContent = 'Finalizing PDF document...';
+                }
+            }
+            
+            // Save data to CSV
+            window.save_data_to_csv = function(data) {
+                if (!data || !Array.isArray(data) || data.length === 0) return;
+                
+                try {
+                    const csvData = {
+                        fields: Object.keys(data[0]),
+                        data: data
+                    };
+                    
+                    // Log the data for debugging
+                    console.log('Saving conversion data:', csvData);
+                } catch (error) {
+                    console.error('Error saving data to CSV:', error);
+                }
+            };
+        });
     </script>
 </body>
 </html>
